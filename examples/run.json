@@ -1,0 +1,11 @@
+{
+  "completed_at_utc": "2026-09-29T22:49:56.799906+00:00",
+  "competition": "English Premier League 2024/25",
+  "source": "https://raw.githubusercontent.com/openfootball/football.json/master/2024-25/en.1.json",
+  "source_sha256": "c3d18f552d83382cd4b6b21127adbbfe38e7f8618ddc979fb5404f2df07d0a75",
+  "validated_records": 380,
+  "completed_matches": 380,
+  "stored_matches": 380,
+  "teams_in_standings": 20,
+  "database_backend": "sqlite"
+}

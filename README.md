@@ -14,11 +14,13 @@ A Python ETL project that extracts Premier League match data, validates it, load
 
 Supports **PostgreSQL** through Psycopg and **SQLite** for a dependency-free local demo. The GitHub Actions workflow is configured for automated tests, ingestion from the public JSON source, daily scheduling, a temporary PostgreSQL service, and output artifact uploads. Successful execution is documented below for a specific commit and run.
 
-## Run in one command
+## Quick start
 
-Python 3.10+ required. Run from this repository's root:
+Requires **Python 3.10+** and an internet connection to download the default source.
 
 ```bash
+git clone https://github.com/eocvjr/data-pipeline.git
+cd data-pipeline
 python -m football_pipeline.pipeline
 ```
 
@@ -32,6 +34,19 @@ Outputs (ignored by Git):
 - `data/run.json`: timestamp, source checksum, backend, and row counts.
 
 Run the command twice and compare `stored_matches` in `run.json`: it should remain 380 for the default source.
+
+## Project structure
+
+| Path | Purpose |
+| --- | --- |
+| [`football_pipeline/pipeline.py`](football_pipeline/pipeline.py) | Extraction, validation, transactional loading, and CSV export |
+| [`tests/test_pipeline.py`](tests/test_pipeline.py) | SQLite tests and optional PostgreSQL integration test |
+| [`compose.yaml`](compose.yaml) | Local PostgreSQL 16 service |
+| [`.github/workflows/pipeline.yml`](.github/workflows/pipeline.yml) | Automated tests, ingestion, scheduling, and artifact upload |
+| [`examples/`](examples/) | Recorded run manifest and standings CSV |
+| [`sql/`](sql/) | SQL reference files; runtime statements are defined in the Python module |
+
+The data flow is **JSON source → raw snapshot → validation → SQL upsert → standings CSV + run manifest**.
 
 ## PostgreSQL setup
 
@@ -66,11 +81,14 @@ The Compose password is for a local demo only; its port is bound to localhost. N
 python -m unittest discover -s tests -v
 ```
 
-Five tests run without dependencies. The sixth is a PostgreSQL integration test, enabled by `TEST_DATABASE_URL` pointing to a **dedicated test database**:
+Five tests run with Python's standard library. The sixth is a PostgreSQL integration test, enabled by `TEST_DATABASE_URL` pointing to a **dedicated test database**. With the local Compose service running, create it once and run the suite (Bash):
 
 ```bash
-TEST_DATABASE_URL='postgresql://football:local_demo_only@localhost:5432/football' python -m unittest discover -s tests -v
+docker compose exec db createdb -U football football_test
+TEST_DATABASE_URL='postgresql://football:local_demo_only@localhost:5432/football_test' python -m unittest discover -s tests -v
 ```
+
+In PowerShell, set `$env:TEST_DATABASE_URL` to the same test connection string, then run `python -m unittest discover -s tests -v`.
 
 Tests cover duplicate-free reruns, corrected scores and dates, invalid inputs, exclusion of unplayed games from standings, transaction rollback, and end-to-end output. The integration test writes a small `Test League 2024/25` dataset and leaves it in the database.
 
@@ -102,9 +120,7 @@ Verified on **2026-10-04** against commit [`aee8cf8ed3decd186aa8646ede02a8016306
 - The [job logs](https://github.com/eocvjr/data-pipeline/actions/runs/37212612163/job/111466672080) show all six tests passing, including `test_postgres_rerun`, followed by ingestion of 380 records and output for 20 teams.
 - The artifact upload step succeeded, and GitHub's artifact listing confirmed `football-pipeline-results` for that run, with expiry on 2026-10-11. Availability is limited by retention; artifact contents were not independently inspected during this documentation review.
 
-An earlier commit-run lookup returned no results because it was restricted to pull-request-triggered runs. A subsequent repository Actions API query filtered by the same commit SHA, without an event filter, returned runs and enabled the verification above. An empty filtered query does not establish that CI never ran.
-
-This evidence confirms the cited run only. It does not establish that every trigger has been exercised, that future runs will pass, or that the project operates as a production service. The configured schedule time is not a guaranteed start time: the cited run started at 15:20 UTC.
+These results document the cited historical run. Artifacts are subject to retention, and the workflow uses a temporary database rather than a persistent warehouse.
 
 ## Design choices and limitations
 
@@ -122,8 +138,14 @@ Data: [OpenFootball football.json](https://github.com/openfootball/football.json
 
 Implementation references: [Psycopg usage](https://www.psycopg.org/psycopg3/docs/basic/usage.html) and [GitHub PostgreSQL service containers](https://docs.github.com/en/actions/tutorials/use-containerized-services/create-postgresql-service-containers).
 
-## Explain it in an interview
+## What this project demonstrates
 
-“I built an ETL project that retrieves football match JSON, validates it, loads SQL records, and derives team statistics. I used deterministic fixture keys and transactional upserts so retries and score corrections do not duplicate matches when fixture identity is unchanged. I added tests for failure cases and repeat runs, and integrated GitHub Actions with temporary PostgreSQL, scheduled ingestion, and output artifacts. A linked scheduled run verifies six passing tests and ingestion of 380 matches. I used AI assistance and can explain the implementation and its limitations.”
+- Building an ETL workflow with traceable source snapshots.
+- Validating data before it reaches a database.
+- Using deterministic fixture keys and transactional upserts to handle repeat runs and corrections.
+- Computing standings in SQL across SQLite and PostgreSQL.
+- Testing failure cases and integrating the workflow with GitHub Actions.
 
-Walk through `extract`, `validate`, `load`, and `run` in [`football_pipeline/pipeline.py`](football_pipeline/pipeline.py), then inspect the correction and rollback tests. Describe CI results using the linked commit and run evidence. The project is a portfolio ETL demonstration; it does not establish a hosted production warehouse or production operation.
+Start with `extract`, `validate`, `load`, and `run` in [`football_pipeline/pipeline.py`](football_pipeline/pipeline.py), then explore the correction and rollback tests.
+
+Built as a personal portfolio project with AI assistance.
